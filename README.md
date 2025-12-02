@@ -1,2 +1,237 @@
-# recepi-suggestor-system-
-recipe suggestor system is a web based tool that uses the ingredients available with the user and on behalf of them it suggest the best possible recipes which could be formed out if those available ingredients . it uses the food api for the selection of ingredients .
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Recipe Suggestor 🍲</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>🍳 Recipe Suggestor System</h1>
+    <nav>
+      <button onclick="showSection('home')">Home</button>
+      <button onclick="showSection('favourites')">My Favourites</button>
+      <button onclick="showSection('game')">Play Game</button>
+      <button onclick="showSection('contact')">Contact Us</button>
+      <button onclick="toggleForm()">User Login</button>
+    </nav>
+  </header>
+
+  <!-- Overlay for Form -->
+  <div id="formOverlay" class="overlay" onclick="toggleForm()"></div>
+
+  <!-- User Registration Form -->
+  <section id="userForm" class="form-container">
+    <h2>User Registration</h2>
+    <form onsubmit="handleRegister(event)">
+      <input type="text" placeholder="Full Name" required><br>
+      <input type="email" placeholder="Email" required><br>
+      <input type="password" placeholder="Password" required><br>
+      <button type="submit">Register</button>
+    </form>
+  </section>
+
+  <!-- Home Section -->
+  <section id="home" class="active">
+    <h2>Find Your Perfect Recipe 🍽️</h2>
+    <div class="search-box">
+      <input type="text" id="ingredientInput" placeholder="Enter an ingredient (e.g., chicken)">
+      <button onclick="addIngredient()">Add Ingredient</button>
+    </div>
+    <div id="ingredientList"></div>
+    <div class="search-box">
+      <button onclick="searchRecipe()">Search Recipe</button>
+    </div>
+    <div id="recipeResults"></div>
+  </section>
+
+  <!-- Favourites Section -->
+  <section id="favourites">
+    <h2>💖 My Favourite Recipes</h2>
+    <div id="favouriteList"></div>
+  </section>
+
+  <!-- Guess the Dish Game -->
+  <section id="game">
+    <h2>🥗 Guess the Dish!</h2>
+    <p id="question"></p>
+    <input type="text" id="answerInput" placeholder="Your guess here">
+    <button onclick="checkAnswer()">Submit</button>
+    <p id="feedback"></p>
+  </section>
+
+  <!-- Contact Section -->
+  <section id="contact">
+    <h2>📧 Contact Us</h2>
+    <p>Click below to reach us directly:</p>
+    <a href="mailto:shshivanshu03@gmail.com" class="contact-link">Send an Email</a>
+  </section>
+
+  <!-- Feedback Form (Auto Popup After 1 Minute) -->
+  <div id="feedbackOverlay" class="overlay" onclick="toggleFeedback()"></div>
+  <section id="feedbackForm" class="form-container">
+    <h2>💬 Share Your Feedback</h2>
+    <form onsubmit="handleFeedback(event)">
+      <textarea id="feedbackText" placeholder="How was your recipe experience?" required></textarea><br>
+      <button type="submit">Submit Feedback</button>
+    </form>
+  </section>
+
+  <script>
+    // Section Switching
+    function showSection(id) {
+      document.querySelectorAll('section').forEach(sec => sec.classList.remove('active'));
+      document.getElementById(id).classList.add('active');
+      if (id === 'favourites') renderFavourites();
+    }
+
+    // Toggle Form Popup
+    function toggleForm() {
+      const form = document.getElementById('userForm');
+      const overlay = document.getElementById('formOverlay');
+      form.classList.toggle('show');
+      overlay.classList.toggle('show');
+    }
+
+    function handleRegister(e) {
+      e.preventDefault();
+      alert("🎉 Registration Successful! Welcome to Recipe Suggestor!");
+      toggleForm();
+    }
+
+    // Ingredient Handling
+    const ingredients = [];
+
+    function addIngredient() {
+      const input = document.getElementById('ingredientInput');
+      const ingredient = input.value.trim();
+      if (ingredient && !ingredients.includes(ingredient)) {
+        ingredients.push(ingredient);
+        renderIngredients();
+        input.value = '';
+      }
+    }
+
+    function renderIngredients() {
+      const list = document.getElementById('ingredientList');
+      list.innerHTML = "<b>Ingredients:</b> " + ingredients.join(", ");
+    }
+
+    // === Recipe Search with Favourites ===
+    const favourites = JSON.parse(localStorage.getItem('favourites')) || [];
+
+    async function searchRecipe() {
+      const recipeResults = document.getElementById('recipeResults');
+      if (ingredients.length === 0) {
+        recipeResults.innerHTML = "<p>Please add some ingredients first.</p>";
+        return;
+      }
+
+      recipeResults.innerHTML = "<p>🔍 Searching recipes...</p>";
+
+      try {
+        const query = ingredients[0];
+        const res = await fetch(`https://www.themealdb.com/api/json/v1/1/filter.php?i=${query}`);
+        const data = await res.json();
+
+        if (!data.meals) {
+          recipeResults.innerHTML = "<p>No recipes found for the given ingredient.</p>";
+          return;
+        }
+
+        recipeResults.innerHTML = data.meals.map(meal => `
+          <div class="recipe-card">
+            <img src="${meal.strMealThumb}" alt="${meal.strMeal}">
+            <h3>${meal.strMeal}</h3>
+            <a href="https://www.themealdb.com/meal/${meal.idMeal}" target="_blank">View Recipe</a>
+            <button class="fav-btn ${favourites.includes(meal.idMeal) ? 'active' : ''}" onclick="toggleFavourite('${meal.idMeal}', '${meal.strMeal}', '${meal.strMealThumb}', this)">❤️</button>
+          </div>
+        `).join('');
+      } catch (error) {
+        recipeResults.innerHTML = "<p>⚠️ Error fetching recipes. Please try again later.</p>";
+      }
+    }
+
+    function toggleFavourite(id, name, img, btn) {
+      const index = favourites.findIndex(f => f.id === id);
+      if (index !== -1) {
+        favourites.splice(index, 1);
+        btn.classList.remove('active');
+      } else {
+        favourites.push({ id, name, img });
+        btn.classList.add('active');
+      }
+      localStorage.setItem('favourites', JSON.stringify(favourites));
+      console.log("Favourites:", favourites);
+    }
+
+    function renderFavourites() {
+      const favList = document.getElementById('favouriteList');
+      if (favourites.length === 0) {
+        favList.innerHTML = "<p>No favourite recipes added yet ❤️</p>";
+        return;
+      }
+      favList.innerHTML = favourites.map(fav => `
+        <div class="recipe-card">
+          <img src="${fav.img}" alt="${fav.name}">
+          <h3>${fav.name}</h3>
+          <a href="https://www.themealdb.com/meal/${fav.id}" target="_blank">View Recipe</a>
+        </div>
+      `).join('');
+    }
+
+    // === Guess the Dish Game ===
+    const dishes = [
+      { clue: "It’s a round Italian dish with cheese and tomato sauce.", answer: "pizza" },
+      { clue: "A sweet frozen dessert often served in cones or cups.", answer: "ice cream" },
+      { clue: "A popular Indian dish made with rice and spices.", answer: "biryani" },
+      { clue: "Breakfast item made with eggs, often folded with veggies.", answer: "omelette" },
+      { clue: "Soft bread roll with patty, cheese, and lettuce.", answer: "burger" }
+    ];
+
+    let current = 0;
+    document.getElementById('question').textContent = dishes[current].clue;
+
+    function checkAnswer() {
+      const userAnswer = document.getElementById('answerInput').value.toLowerCase().trim();
+      const feedback = document.getElementById('feedback');
+      if (userAnswer === dishes[current].answer) {
+        feedback.textContent = "✅ Correct! Great job, Chef!";
+      } else {
+        feedback.textContent = "❌ Oops! The correct answer was " + dishes[current].answer + ".";
+      }
+      current = (current + 1) % dishes.length;
+      setTimeout(() => {
+        document.getElementById('question').textContent = dishes[current].clue;
+        document.getElementById('answerInput').value = "";
+        feedback.textContent = "";
+      }, 2000);
+    }
+
+    // === Feedback Popup ===
+    function toggleFeedback() {
+      const form = document.getElementById('feedbackForm');
+      const overlay = document.getElementById('feedbackOverlay');
+      form.classList.toggle('show');
+      overlay.classList.toggle('show');
+    }
+
+    function handleFeedback(e) {
+      e.preventDefault();
+      alert("🙏 Thanks for your feedback!");
+      toggleFeedback();
+    }
+
+    // Show feedback form automatically after 1 minute (once per session)
+    window.addEventListener('load', () => {
+      if (!sessionStorage.getItem("feedbackShown")) {
+        setTimeout(() => {
+          toggleFeedback();
+          sessionStorage.setItem("feedbackShown", "true");
+        }, 60000);
+      }
+    });
+  </script>
+</body>
+</html>
